@@ -1,0 +1,33 @@
+{
+  "name": "rocont/laravel-notification-channel-compass",
+  "description": "Laravel Notification Channel for Compass Userbot",
+  "type": "library",
+  "license": "MIT",
+  "version": "0.0.9",
+  "authors": [
+    {
+      "name": "Mikhail Margasov",
+      "email": "m.margasov@rocont.ru",
+      "role": "Developer"
+    }
+  ],
+  "homepage": "https://github.com/Rocont/laravel-notification-channel-compass",
+  "require": {
+    "php": "^8.1",
+    "illuminate/notifications": "^10|^11|^12",
+    "illuminate/support": "^10|^11|^12",
+    "guzzlehttp/guzzle": "^7.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Rocont\\CompassChannel\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Rocont\\CompassChannel\\CompassServiceProvider"
+      ]
+    }
+  }
+}
