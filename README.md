@@ -1,105 +1,75 @@
 # Laravel Notification Channel for Compass
 
-[![Laravel](https://img.shields.io/badge/Laravel-10/11/12-red.svg)](https://laravel.com)  
-[![Compass Userbot](https://img.shields.io/badge/Compass-Userbot-blue.svg)](https://github.com/getCompass/userbot)  
+[![Latest Version](https://img.shields.io/packagist/v/rocont/laravel-notification-channel-compass.svg)](https://packagist.org/packages/rocont/laravel-notification-channel-compass)
+[![Tests](https://github.com/Rocont/laravel-notification-channel-compass/actions/workflows/tests.yml/badge.svg)](https://github.com/Rocont/laravel-notification-channel-compass/actions)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> Пакет разработан компанией **Rocont** (занимается веб-разработкой на Laravel).
+Laravel notification channel for [Compass Userbot API](https://github.com/getCompass/userbot). Send messages to users, groups, and threads via standard Laravel notifications.
 
----
-
-## Что это?
-
-Данный пакет добавляет в Laravel новый канал нотификаций — **`compass`**, который позволяет отправлять сообщения, файлы и реакции через [Compass Userbot API](https://github.com/getCompass/userbot).
-
-Теперь вы можете использовать привычный механизм `Notification` Laravel для:
-- отправки сообщений конкретным пользователям (по `user_id`),
-- отправки сообщений в группы (по `group_id`),
-- написания ответов в треды (`message_id`),
-- загрузки и пересылки файлов,
-- выбора нужного **бота через конфиг по ключу**.
-
----
-
-## Установка
+## Installation
 
 ```bash
-composer require vendor/laravel-notification-channel-compass
+composer require rocont/laravel-notification-channel-compass
 ```
 
 ```bash
-php artisan vendor:publish --provider="Vendor\\CompassChannel\\CompassServiceProvider" --tag=config
+php artisan vendor:publish --provider="Rocont\CompassChannel\CompassServiceProvider" --tag=config
 ```
 
----
+Add to `.env`:
 
-## Конфигурация `config/compass.php`
+```dotenv
+COMPASS_BOT_TOKEN=your-bot-token
+COMPASS_BASE_URL=https://userbot.getcompass.com/
+```
+
+## Configuration
+
+Published config `config/compass.php`:
 
 ```php
-<?php
-
 return [
-
     'default' => env('COMPASS_DEFAULT_BOT', 'main'),
 
     'bots' => [
         'main' => [
-            'token' => env('COMPASS_BOT_MAIN'),
-        ],
-        'birthday' => [
-            'token' => env('COMPASS_BOT_BIRTHDAY'),
-        ],
-        'marketing' => [
-            'token' => env('COMPASS_BOT_MARKETING'),
+            'token' => env('COMPASS_BOT_TOKEN'),
         ],
     ],
 
-    'base_url' => rtrim(env('COMPASS_BASE_URL', 'https://userbot.getcompass.com/'), '/').'/api/v3/',
-    'timeout' => (int) env('COMPASS_HTTP_TIMEOUT', 10),
-    'retries' => (int) env('COMPASS_HTTP_RETRIES', 1),
+    'base_url' => rtrim(env('COMPASS_BASE_URL', 'https://userbot.getcompass.com/'), '/') . '/api/v3/',
+    'timeout' => 10,
 ];
 ```
 
-### Пример `.env`
+Multiple bots are supported — add more keys under `bots` and reference them via `'bot' => 'key_name'` in your notification.
 
-```dotenv
-COMPASS_DEFAULT_BOT=main
+## Usage
 
-COMPASS_BOT_MAIN=xxxx-main-token-xxxx
-COMPASS_BOT_BIRTHDAY=xxxx-birthday-token-xxxx
-COMPASS_BOT_MARKETING=xxxx-marketing-token-xxxx
-
-COMPASS_BASE_URL=https://userbot.getcompass.com/
-COMPASS_HTTP_TIMEOUT=10
-COMPASS_HTTP_RETRIES=1
-```
-
----
-
-## Использование
-
-### В модели пользователя
+### Route notification from a model
 
 ```php
 class User extends Model
 {
     use Notifiable;
 
-    public function routeNotificationForCompass($notification = null): ?int
+    // Return user_id (int) to send as DM
+    public function routeNotificationForCompass(): ?int
     {
         return $this->compass_user_id;
     }
 }
 ```
 
----
+The return value determines the recipient:
+- `int` — treated as `user_id` (direct message)
+- `string` — treated as `group_id`
+- `array` — merged into notification data (`['user_id' => ..., 'group_id' => ...]`)
 
-## Пример уведомления (по умолчанию)
-
-Если не указать `bot`, будет использован ключ `default` из `config/compass.php`.
+### Create a notification
 
 ```php
-class WelcomeOnCompass extends Notification
+class WelcomeNotification extends Notification
 {
     public function via($notifiable): array
     {
@@ -110,96 +80,53 @@ class WelcomeOnCompass extends Notification
     {
         return [
             'type' => 'text',
-            'text' => "Привет, {$notifiable->name}! 🎉 Добро пожаловать.",
+            'text' => "Welcome, {$notifiable->name}!",
         ];
     }
 }
 ```
 
----
-
-## Пример уведомления с выбором бота
+### Send to a group (on-demand)
 
 ```php
-class BirthdayNotification extends Notification
+Notification::route('compass', ['group_id' => $groupId])
+    ->notify(new WelcomeNotification());
+```
+
+### Send a file to a thread
+
+```php
+public function toCompass($notifiable): array
 {
-    public function via($notifiable): array
-    {
-        return ['compass'];
-    }
-
-    public function toCompass($notifiable): array
-    {
-        $message = "С днём рождения, {$notifiable->name}! 🎉";
-
-        return [
-            'bot'  => 'birthday', // ключ из config('compass.bots')
-            'type' => 'text',
-            'text' => $message,
-        ];
-    }
+    return [
+        'type' => 'file',
+        'file' => '/path/to/document.pdf',
+        'message_id' => $this->threadId,
+    ];
 }
 ```
 
----
+The file is automatically uploaded via `file/getUrl` and the resulting `file_id` is sent.
 
-## Отправка через route
-
-```php
-Notification::route('compass', [
-    'group_id' => env('COMPASS_GROUP_ID'),
-])
-->notify(new WelcomeOnCompass());
-```
+### Use a specific bot
 
 ```php
-Notification::route('compass', [
-    'group_id' => env('COMPASS_GROUP_ID'),
-])
-->notify(new BirthdayNotification());
+public function toCompass($notifiable): array
+{
+    return [
+        'bot' => 'marketing', // key from config('compass.bots')
+        'type' => 'text',
+        'text' => 'Hello from marketing bot!',
+    ];
+}
 ```
 
----
+## Testing
 
-## Отправка файла в тред
-
-```php
-Notification::route('compass', ['message_id' => $rootMessageId])
-    ->notify(new class('/path/to/file.pdf') extends Notification {
-        public function __construct(private string $path) {}
-        public function via($n) { return ['compass']; }
-        public function toCompass($n): array {
-            return [
-                'bot' => 'marketing',
-                'type' => 'file',
-                'file' => $this->path,
-            ];
-        }
-    });
+```bash
+composer test
 ```
 
----
+## License
 
-## Тестирование
-
-```php
-Http::fake([
-    'userbot.getcompass.com/api/v3/*' => Http::response([
-        'status'   => 'ok',
-        'response' => ['message_id' => 'abc123'],
-    ], 200),
-]);
-```
-
----
-
-## Лицензия
-
-MIT License.
-
----
-
-## Авторство
-
-Разработано компанией **Rocont** — мы специализируемся на **веб-разработке на Laravel** и интеграциях.  
-Если у вас есть проект или интеграция для Compass — свяжитесь с нами 🚀
+MIT
