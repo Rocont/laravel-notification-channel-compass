@@ -17,7 +17,8 @@ class CompassServiceProvider extends ServiceProvider
         $this->app->singleton(CompassChannel::class, function ($app) {
             return new CompassChannel(
                 $app->make(CompassClientFactory::class),
-                $app['config']['compass']['default'] // дефолты
+                $app['config'],
+                $app['config']['compass']['default']
             );
         });
     }

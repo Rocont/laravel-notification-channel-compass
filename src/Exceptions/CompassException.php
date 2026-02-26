@@ -15,7 +15,7 @@ class CompassException extends Exception
         ?int       $compassCode = null,
         array      $response = [],
         int        $code = 0,
-        ?Exception $previous = null
+        ?\Throwable $previous = null
     )
     {
         parent::__construct($message, $code, $previous);

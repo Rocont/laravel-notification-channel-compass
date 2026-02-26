@@ -2,6 +2,7 @@
 
 namespace Rocont\CompassChannel;
 
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Notifications\Notification;
 use Rocont\CompassChannel\Support\CompassClientFactory;
 
@@ -9,6 +10,7 @@ class CompassChannel
 {
     public function __construct(
         private readonly CompassClientFactory $factory,
+        private readonly Repository           $config,
         private readonly string               $defaultBotConfig
     )
     {
@@ -33,9 +35,9 @@ class CompassChannel
 
         $botName = $data['bot'] ?? $this->defaultBotConfig;
         $auth = [
-            'token' => config("compass.bots.$botName.token") ?? null,
-            'base_url' => config('compass.base_url') ?? null,
-            'timeout' => config('compass.timeout') ?? 10,
+            'token' => $this->config->get("compass.bots.$botName.token"),
+            'base_url' => $this->config->get('compass.base_url'),
+            'timeout' => $this->config->get('compass.timeout', 10),
         ];
 
         unset($data['bot']);
@@ -52,7 +54,7 @@ class CompassChannel
             isset($data['group_id']) => 'group/send',
             isset($data['message_id']) => 'thread/send',
             default => throw new \InvalidArgumentException(
-                'CompassChannel: нужен user_id | group_id | message_id'
+                'CompassChannel: user_id, group_id or message_id is required'
             ),
         };
 

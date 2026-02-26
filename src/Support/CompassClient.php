@@ -4,7 +4,6 @@ namespace Rocont\CompassChannel\Support;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Exception\RequestException;
 use Rocont\CompassChannel\Exceptions\CompassException;
 
 class CompassClient
@@ -80,15 +79,16 @@ class CompassClient
 
             $json = json_decode((string)$resp->getBody(), true);
             if (($json['status'] ?? null) !== 'ok') {
+                $apiMessage = $json['response']['message'] ?? 'Unknown error';
                 throw new CompassException(
-                    'Compass API error',
+                    "Compass API error: $apiMessage",
                     $json['response']['error_code'] ?? null,
                     $json['response'] ?? []
                 );
             }
 
             return $json['response'] ?? [];
-        } catch (RequestException|GuzzleException $e) {
+        } catch (GuzzleException $e) {
             throw new CompassException(
                 '[Compass] HTTP error',
                 null,
